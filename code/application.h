@@ -18,13 +18,15 @@
 #include "Renderer/model.h"
 #include "Renderer/shader.h"
 #include "Renderer/FrameBuffer.h"
+#include "Camera.h"
 
 /*
 ====================================================
 Application
 ====================================================
 */
-class Application {
+class Application
+{
 public:
 	Application() : m_isPaused( true ), m_stepFrame( false ) {}
 	~Application();
@@ -32,8 +34,13 @@ public:
 	void Initialize();
 	void MainLoop();
 
+	void CreateModelForBodyIndex( int index );
+
+	Camera& GetCamera() { return camera; }
+	bool IsPaused() const { return m_isPaused; }
+
 private:
-	std::vector< const char * > GetGLFWRequiredExtensions() const;
+	std::vector<const char*> GetGLFWRequiredExtensions() const;
 
 	void InitializeGLFW();
 	bool InitializeVulkan();
@@ -45,15 +52,16 @@ private:
 	void MouseScrolled( float z );
 	void Keyboard( int key, int scancode, int action, int modifiers );
 
-	static void OnWindowResized( GLFWwindow * window, int width, int height );
-	static void OnMouseMoved( GLFWwindow * window, double x, double y );
-	static void OnMouseWheelScrolled( GLFWwindow * window, double x, double y );
-	static void OnKeyboard( GLFWwindow * window, int key, int scancode, int action, int modifiers );
+	static void OnWindowResized( GLFWwindow* window, int width, int height );
+	static void OnMouseMoved( GLFWwindow* window, double x, double y );
+	static void OnMouseWheelScrolled( GLFWwindow* window, double x, double y );
+	static void OnKeyboard( GLFWwindow* window, int key, int scancode, int action, int modifiers );
 
 private:
-	class Scene * scene;
+	class Scene* scene;
+	Camera camera;
 
-	GLFWwindow * glfwWindow;
+	GLFWwindow* glfwWindow;
 
 	DeviceContext deviceContext;
 
@@ -66,7 +74,7 @@ private:
 	//	Model
 	//
 	Model m_modelFullScreen;
-	std::vector< Model * > m_models;	// models for the bodies
+	std::vector< Model* > m_models;	// models for the bodies
 
 	//
 	//	Pipeline for copying the offscreen framebuffer to the swapchain
@@ -77,10 +85,6 @@ private:
 
 	// User input
 	Vec2 m_mousePosition;
-	Vec3 m_cameraFocusPoint;
-	float m_cameraPositionTheta;
-	float m_cameraPositionPhi;
-	float m_cameraRadius;
 	bool m_isPaused;
 	bool m_stepFrame;
 
@@ -92,4 +96,4 @@ private:
 	static const bool m_enableLayers = true;
 };
 
-extern Application * application;
+extern Application* application;

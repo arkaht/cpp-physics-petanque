@@ -146,5 +146,6 @@
     <ClInclude Include="code\Intersection.h" />
     <ClInclude Include="code\Contact.h" />
     <ClInclude Include="code\Broadphase.h" />
+    <ClInclude Include="code\Camera.h" />
   </ItemGroup>
 </Project>

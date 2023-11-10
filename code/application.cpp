@@ -17,7 +17,7 @@
 
 #include "Scene.h"
 
-Application * application = NULL;
+Application* application = NULL;
 
 #include <time.h>
 #include <windows.h>
@@ -31,26 +31,28 @@ static unsigned __int64 gStartTicks;
 GetTimeSeconds
 ====================================
 */
-int GetTimeMicroseconds() {
-	if ( false == gIsInitialized ) {
+int GetTimeMicroseconds()
+{
+	if ( false == gIsInitialized )
+	{
 		gIsInitialized = true;
 
 		// Get the high frequency counter's resolution
-		QueryPerformanceFrequency( (LARGE_INTEGER *)&gTicksPerSecond );
+		QueryPerformanceFrequency( (LARGE_INTEGER*) &gTicksPerSecond );
 
 		// Get the current time
-		QueryPerformanceCounter( (LARGE_INTEGER *)&gStartTicks );
+		QueryPerformanceCounter( (LARGE_INTEGER*) &gStartTicks );
 
 		return 0;
 	}
 
 	unsigned __int64 tick;
-	QueryPerformanceCounter( (LARGE_INTEGER *)&tick );
+	QueryPerformanceCounter( (LARGE_INTEGER*) &tick );
 
-	const double ticks_per_micro = (double)( gTicksPerSecond / 1000000 );
+	const double ticks_per_micro = (double) ( gTicksPerSecond / 1000000 );
 
-	const unsigned __int64 timeMicro = (unsigned __int64)( (double)( tick - gStartTicks ) / ticks_per_micro );
-	return (int)timeMicro;
+	const unsigned __int64 timeMicro = (unsigned __int64) ( (double) ( tick - gStartTicks ) / ticks_per_micro );
+	return (int) timeMicro;
 }
 
 /*
@@ -66,32 +68,32 @@ Application
 Application::Initialize
 ====================================================
 */
-void Application::Initialize() {
+void Application::Initialize()
+{
 	//FillDiamond();
 
 	InitializeGLFW();
 	InitializeVulkan();
 
-	scene = new Scene;
+	//  init camera
+	camera.PositionTheta = acosf( -1.0f ) / 2.0f;
+	camera.PositionPhi = 0;
+	camera.Radius = 100.0f;
+	camera.FocusPoint = Vec3( 0, 0, 3 );
+
+	scene = new Scene( this );
 	scene->Initialize();
 	scene->Reset();
 
 	m_models.reserve( scene->bodies.size() );
-	for ( int i = 0; i < scene->bodies.size(); i++ ) {
-		Model * model = new Model();
-		model->BuildFromShape( scene->bodies[ i ].shape );
-		model->MakeVBO( &deviceContext );
-
-		m_models.push_back( model );
-	}
+	/*for ( int i = 0; i < scene->bodies.size(); i++ )
+	{
+		CreateModelForBodyIndex( i );
+	}*/
 
 	m_mousePosition = Vec2( 0, 0 );
-	m_cameraPositionTheta = acosf( -1.0f ) / 2.0f;
-	m_cameraPositionPhi = 0;
-	m_cameraRadius = 15.0f;
-	m_cameraFocusPoint = Vec3( 0, 0, 3 );
 
-	m_isPaused = true;
+	m_isPaused = false;
 	m_stepFrame = false;
 }
 
@@ -100,7 +102,8 @@ void Application::Initialize() {
 Application::~Application
 ====================================================
 */
-Application::~Application() {
+Application::~Application()
+{
 	Cleanup();
 }
 
@@ -109,7 +112,8 @@ Application::~Application() {
 Application::InitializeGLFW
 ====================================================
 */
-void Application::InitializeGLFW() {
+void Application::InitializeGLFW()
+{
 	glfwInit();
 
 	glfwWindowHint( GLFW_CLIENT_API, GLFW_NO_API );
@@ -131,18 +135,21 @@ void Application::InitializeGLFW() {
 Application::GetGLFWRequiredExtensions
 ====================================================
 */
-std::vector< const char * > Application::GetGLFWRequiredExtensions() const {
-	std::vector< const char * > extensions;
+std::vector< const char* > Application::GetGLFWRequiredExtensions() const
+{
+	std::vector< const char* > extensions;
 
-	const char ** glfwExtensions;
+	const char** glfwExtensions;
 	uint32_t glfwExtensionCount = 0;
 	glfwExtensions = glfwGetRequiredInstanceExtensions( &glfwExtensionCount );
 
-	for ( uint32_t i = 0; i < glfwExtensionCount; i++ ) {
-		extensions.push_back( glfwExtensions[ i ] );
+	for ( uint32_t i = 0; i < glfwExtensionCount; i++ )
+	{
+		extensions.push_back( glfwExtensions[i] );
 	}
 
-	if ( m_enableLayers ) {
+	if ( m_enableLayers )
+	{
 		extensions.push_back( VK_EXT_DEBUG_REPORT_EXTENSION_NAME );
 	}
 
@@ -154,13 +161,15 @@ std::vector< const char * > Application::GetGLFWRequiredExtensions() const {
 Application::InitializeVulkan
 ====================================================
 */
-bool Application::InitializeVulkan() {
+bool Application::InitializeVulkan()
+{
 	//
 	//	Vulkan Instance
 	//
 	{
-		std::vector< const char * > extensions = GetGLFWRequiredExtensions();
-		if ( !deviceContext.CreateInstance( m_enableLayers, extensions ) ) {
+		std::vector< const char* > extensions = GetGLFWRequiredExtensions();
+		if ( !deviceContext.CreateInstance( m_enableLayers, extensions ) )
+		{
 			printf( "ERROR: Failed to create vulkan instance\n" );
 			assert( 0 );
 			return false;
@@ -170,7 +179,8 @@ bool Application::InitializeVulkan() {
 	//
 	//	Vulkan Surface for GLFW Window
 	//
-	if ( VK_SUCCESS != glfwCreateWindowSurface( deviceContext.m_vkInstance, glfwWindow, nullptr, &deviceContext.m_vkSurface ) ) {
+	if ( VK_SUCCESS != glfwCreateWindowSurface( deviceContext.m_vkInstance, glfwWindow, nullptr, &deviceContext.m_vkSurface ) )
+	{
 		printf( "ERROR: Failed to create window sruface\n" );
 		assert( 0 );
 		return false;
@@ -183,7 +193,8 @@ bool Application::InitializeVulkan() {
 	//
 	//	Vulkan Device
 	//
-	if ( !deviceContext.CreateDevice() ) {
+	if ( !deviceContext.CreateDevice() )
+	{
 		printf( "ERROR: Failed to create device\n" );
 		assert( 0 );
 		return false;
@@ -192,7 +203,8 @@ bool Application::InitializeVulkan() {
 	//
 	//	Create SwapChain
 	//
-	if ( !deviceContext.CreateSwapChain( windowWidth, windowHeight ) ) {
+	if ( !deviceContext.CreateSwapChain( windowWidth, windowHeight ) )
+	{
 		printf( "ERROR: Failed to create swapchain\n" );
 		assert( 0 );
 		return false;
@@ -206,7 +218,8 @@ bool Application::InitializeVulkan() {
 	//
 	//	Command Buffers
 	//
-	if ( !deviceContext.CreateCommandBuffers() ) {
+	if ( !deviceContext.CreateCommandBuffers() )
+	{
 		printf( "ERROR: Failed to create command buffers\n" );
 		assert( 0 );
 		return false;
@@ -228,13 +241,15 @@ bool Application::InitializeVulkan() {
 	{
 		bool result;
 		FillFullScreenQuad( m_modelFullScreen );
-		for ( int i = 0; i < m_modelFullScreen.m_vertices.size(); i++ ) {
-			m_modelFullScreen.m_vertices[ i ].xyz[ 1 ] *= -1.0f;
+		for ( int i = 0; i < m_modelFullScreen.m_vertices.size(); i++ )
+		{
+			m_modelFullScreen.m_vertices[i].xyz[1] *= -1.0f;
 		}
 		m_modelFullScreen.MakeVBO( &deviceContext );
 
 		result = m_copyShader.Load( &deviceContext, "DebugImage2D" );
-		if ( !result ) {
+		if ( !result )
+		{
 			printf( "ERROR: Failed to load copy shader\n" );
 			assert( 0 );
 			return false;
@@ -245,7 +260,8 @@ bool Application::InitializeVulkan() {
 		descriptorParms.numUniformsFragment = 1;
 		descriptorParms.numImageSamplers = 1;
 		result = m_copyDescriptors.Create( &deviceContext, descriptorParms );
-		if ( !result ) {
+		if ( !result )
+		{
 			printf( "ERROR: Failed to create copy descriptors\n" );
 			assert( 0 );
 			return false;
@@ -262,7 +278,8 @@ bool Application::InitializeVulkan() {
 		pipelineParms.depthTest = false;
 		pipelineParms.depthWrite = false;
 		result = m_copyPipeline.Create( &deviceContext, pipelineParms );
-		if ( !result ) {
+		if ( !result )
+		{
 			printf( "ERROR: Failed to create copy pipeline\n" );
 			assert( 0 );
 			return false;
@@ -277,7 +294,8 @@ bool Application::InitializeVulkan() {
 Application::Cleanup
 ====================================================
 */
-void Application::Cleanup() {
+void Application::Cleanup()
+{
 	CleanupOffscreen( &deviceContext );
 
 	m_copyShader.Cleanup( &deviceContext );
@@ -290,9 +308,10 @@ void Application::Cleanup() {
 	scene = NULL;
 
 	// Delete models
-	for ( int i = 0; i < m_models.size(); i++ ) {
-		m_models[ i ]->Cleanup( deviceContext );
-		delete m_models[ i ];
+	for ( int i = 0; i < m_models.size(); i++ )
+	{
+		m_models[i]->Cleanup( deviceContext );
+		delete m_models[i];
 	}
 	m_models.clear();
 
@@ -315,12 +334,14 @@ void Application::Cleanup() {
 Application::OnWindowResized
 ====================================================
 */
-void Application::OnWindowResized( GLFWwindow * window, int windowWidth, int windowHeight ) {
-	if ( 0 == windowWidth || 0 == windowHeight ) {
+void Application::OnWindowResized( GLFWwindow* window, int windowWidth, int windowHeight )
+{
+	if ( 0 == windowWidth || 0 == windowHeight )
+	{
 		return;
 	}
 
-	Application * application = reinterpret_cast< Application * >( glfwGetWindowUserPointer( window ) );
+	Application* application = reinterpret_cast<Application*>( glfwGetWindowUserPointer( window ) );
 	application->ResizeWindow( windowWidth, windowHeight );
 }
 
@@ -329,7 +350,8 @@ void Application::OnWindowResized( GLFWwindow * window, int windowWidth, int win
 Application::ResizeWindow
 ====================================================
 */
-void Application::ResizeWindow( int windowWidth, int windowHeight ) {
+void Application::ResizeWindow( int windowWidth, int windowHeight )
+{
 	deviceContext.ResizeWindow( windowWidth, windowHeight );
 
 	//
@@ -350,7 +372,8 @@ void Application::ResizeWindow( int windowWidth, int windowHeight ) {
 		pipelineParms.depthTest = false;
 		pipelineParms.depthWrite = false;
 		result = m_copyPipeline.Create( &deviceContext, pipelineParms );
-		if ( !result ) {
+		if ( !result )
+		{
 			printf( "Unable to build pipeline!\n" );
 			assert( 0 );
 			return;
@@ -363,9 +386,10 @@ void Application::ResizeWindow( int windowWidth, int windowHeight ) {
 Application::OnMouseMoved
 ====================================================
 */
-void Application::OnMouseMoved( GLFWwindow * window, double x, double y ) {
-	Application * application = reinterpret_cast< Application * >( glfwGetWindowUserPointer( window ) );
-	application->MouseMoved( (float)x, (float)y );
+void Application::OnMouseMoved( GLFWwindow* window, double x, double y )
+{
+	Application* application = reinterpret_cast<Application*>( glfwGetWindowUserPointer( window ) );
+	application->MouseMoved( (float) x, (float) y );
 }
 
 /*
@@ -373,20 +397,23 @@ void Application::OnMouseMoved( GLFWwindow * window, double x, double y ) {
 Application::MouseMoved
 ====================================================
 */
-void Application::MouseMoved( float x, float y ) {
+void Application::MouseMoved( float x, float y )
+{
 	Vec2 newPosition = Vec2( x, y );
 	Vec2 ds = newPosition - m_mousePosition;
 	m_mousePosition = newPosition;
 
 	float sensitivity = 0.01f;
-	m_cameraPositionTheta += ds.y * sensitivity;
-	m_cameraPositionPhi += ds.x * sensitivity;
+	camera.PositionTheta += ds.y * sensitivity;
+	camera.PositionPhi += ds.x * sensitivity;
 
-	if ( m_cameraPositionTheta < 0.14f ) {
-		m_cameraPositionTheta = 0.14f;
+	if ( camera.PositionTheta < 0.14f )
+	{
+		camera.PositionTheta = 0.14f;
 	}
-	if ( m_cameraPositionTheta > 3.0f ) {
-		m_cameraPositionTheta = 3.0f;
+	if ( camera.PositionTheta > 3.0f )
+	{
+		camera.PositionTheta = 3.0f;
 	}
 }
 
@@ -395,9 +422,10 @@ void Application::MouseMoved( float x, float y ) {
 Application::OnMouseWheelScrolled
 ====================================================
 */
-void Application::OnMouseWheelScrolled( GLFWwindow * window, double x, double y ) {
-	Application * application = reinterpret_cast< Application * >( glfwGetWindowUserPointer( window ) );
-	application->MouseScrolled( (float)y );
+void Application::OnMouseWheelScrolled( GLFWwindow* window, double x, double y )
+{
+	Application* application = reinterpret_cast<Application*>( glfwGetWindowUserPointer( window ) );
+	application->MouseScrolled( (float) y );
 }
 
 /*
@@ -405,10 +433,12 @@ void Application::OnMouseWheelScrolled( GLFWwindow * window, double x, double y 
 Application::MouseScrolled
 ====================================================
 */
-void Application::MouseScrolled( float z ) {
-	m_cameraRadius -= z;
-	if ( m_cameraRadius < 0.5f ) {
-		m_cameraRadius = 0.5f;
+void Application::MouseScrolled( float z )
+{
+	camera.Radius -= z;
+	if ( camera.Radius < 0.5f )
+	{
+		camera.Radius = 0.5f;
 	}
 }
 
@@ -417,8 +447,9 @@ void Application::MouseScrolled( float z ) {
 Application::OnKeyboard
 ====================================================
 */
-void Application::OnKeyboard( GLFWwindow * window, int key, int scancode, int action, int modifiers ) {
-	Application * application = reinterpret_cast< Application * >( glfwGetWindowUserPointer( window ) );
+void Application::OnKeyboard( GLFWwindow* window, int key, int scancode, int action, int modifiers )
+{
+	Application* application = reinterpret_cast<Application*>( glfwGetWindowUserPointer( window ) );
 	application->Keyboard( key, scancode, action, modifiers );
 }
 
@@ -427,15 +458,23 @@ void Application::OnKeyboard( GLFWwindow * window, int key, int scancode, int ac
 Application::Keyboard
 ====================================================
 */
-void Application::Keyboard( int key, int scancode, int action, int modifiers ) {
-	if ( GLFW_KEY_R == key && GLFW_RELEASE == action ) {
+void Application::Keyboard( int key, int scancode, int action, int modifiers )
+{
+	if ( GLFW_KEY_R == key && GLFW_RELEASE == action )
+	{
 		scene->Reset();
 	}
-	if ( GLFW_KEY_T == key && GLFW_RELEASE == action ) {
+	else if ( GLFW_KEY_T == key && GLFW_RELEASE == action )
+	{
 		m_isPaused = !m_isPaused;
 	}
-	if ( GLFW_KEY_Y == key && ( GLFW_PRESS == action || GLFW_REPEAT == action ) ) {
+	else if ( GLFW_KEY_Y == key && ( GLFW_PRESS == action || GLFW_REPEAT == action ) )
+	{
 		m_stepFrame = m_isPaused && !m_stepFrame;
+	}
+	else
+	{
+		scene->OnKeyInput( key, action );
 	}
 }
 
@@ -444,23 +483,25 @@ void Application::Keyboard( int key, int scancode, int action, int modifiers ) {
 Application::MainLoop
 ====================================================
 */
-void Application::MainLoop() {
+void Application::MainLoop()
+{
 	static int timeLastFrame = 0;
 	static int numSamples = 0;
 	static float avgTime = 0.0f;
 	static float maxTime = 0.0f;
 
-	while ( !glfwWindowShouldClose( glfwWindow ) ) {
-		int time					= GetTimeMicroseconds();
-		float dt_us					= (float)time - (float)timeLastFrame;
-		if ( dt_us < 16000.0f ) {
-			int x = 16000 - (int)dt_us;
+	while ( !glfwWindowShouldClose( glfwWindow ) )
+	{
+		int time = GetTimeMicroseconds();
+		float dt_us = (float) time - (float) timeLastFrame;
+		if ( dt_us < 16000.0f )
+		{
+			int x = 16000 - (int) dt_us;
 			std::this_thread::sleep_for( std::chrono::microseconds( x ) );
 			dt_us = 16000;
 			time = GetTimeMicroseconds();
 		}
 		timeLastFrame = time;
-		printf( "\ndt_ms: %.1f    ", dt_us * 0.001f );
 
 		// Get User Input
 		glfwPollEvents();
@@ -468,15 +509,18 @@ void Application::MainLoop() {
 		// If the time is greater than 33ms (30fps)
 		// then force the time difference to smaller
 		// to prevent super large simulation steps.
-		if ( dt_us > 33000.0f ) {
+		if ( dt_us > 33000.0f )
+		{
 			dt_us = 33000.0f;
 		}
 
 		bool runPhysics = true;
-		if ( m_isPaused ) {
+		if ( m_isPaused )
+		{
 			dt_us = 0.0f;
 			runPhysics = false;
-			if ( m_stepFrame ) {
+			if ( m_stepFrame )
+			{
 				dt_us = 16667.0f;
 				m_stepFrame = false;
 				runPhysics = true;
@@ -487,22 +531,28 @@ void Application::MainLoop() {
 		float dt_sec = dt_us * 0.001f * 0.001f;
 
 		// Run Update
-		if ( runPhysics ) {
+		scene->Update( dt_sec );
+		if ( runPhysics )
+		{
+			//printf( "dt_ms: %.1f FPS: %.0f\n", dt_us * 0.001f, 1.0f / dt_sec );
+
 			int startTime = GetTimeMicroseconds();
-			for ( int i = 0; i < 2; i++ ) {
-				scene->Update( dt_sec * 0.5f );
+			for ( int i = 0; i < 2; i++ )
+			{
+				scene->UpdatePhysics( dt_sec * 0.5f );
 			}
 			int endTime = GetTimeMicroseconds();
 
-			dt_us = (float)endTime - (float)startTime;
-			if ( dt_us > maxTime ) {
+			dt_us = (float) endTime - (float) startTime;
+			if ( dt_us > maxTime )
+			{
 				maxTime = dt_us;
 			}
 
 			avgTime = ( avgTime * float( numSamples ) + dt_us ) / float( numSamples + 1 );
 			numSamples++;
 
-			printf( "frame dt_ms: %.2f %.2f %.2f", avgTime * 0.001f, maxTime * 0.001f, dt_us * 0.001f );
+			//printf( "frame dt_ms: %.2f %.2f %.2f\n", avgTime * 0.001f, maxTime * 0.001f, dt_us * 0.001f );
 		}
 
 		// Draw the Scene
@@ -510,70 +560,75 @@ void Application::MainLoop() {
 	}
 }
 
+void Application::CreateModelForBodyIndex( int index )
+{
+	int models_size = m_models.size() - 1;
+	if ( index < models_size ) return;
+
+	Model* model = new Model();
+	model->BuildFromShape( scene->bodies[index].shape );
+	model->MakeVBO( &deviceContext );
+
+	m_models.push_back( model );
+}
+
 /*
 ====================================================
 Application::UpdateUniforms
 ====================================================
 */
-void Application::UpdateUniforms() {
+void Application::UpdateUniforms()
+{
 	m_renderModels.clear();
 
 	uint32_t uboByteOffset = 0;
 	uint32_t cameraByteOFfset = 0;
 	uint32_t shadowByteOffset = 0;
 
-	struct camera_t {
+	struct camera_t
+	{
 		Mat4 matView;
 		Mat4 matProj;
 		Mat4 pad0;
 		Mat4 pad1;
 	};
-	camera_t camera;
+	camera_t camera_matrices;
 
 	//
 	//	Update the uniform buffers
 	//
 	{
-		unsigned char * mappedData = (unsigned char *)m_uniformBuffer.MapBuffer( &deviceContext );
+		unsigned char* mappedData = (unsigned char*) m_uniformBuffer.MapBuffer( &deviceContext );
 
 		//
 		// Update the uniform buffer with the camera information
 		//
 		{
-			Vec3 camPos = Vec3( 10, 0, 5 ) * 1.25f;
-			Vec3 camLookAt = Vec3( 0, 0, 1 );
+			Vec3 camPos = camera.GetPosition();
+			Vec3 camLookAt = camera.FocusPoint;
 			Vec3 camUp = Vec3( 0, 0, 1 );
-
-			camPos.x = cosf( m_cameraPositionPhi ) * sinf( m_cameraPositionTheta );
-			camPos.y = sinf( m_cameraPositionPhi ) * sinf( m_cameraPositionTheta );
-			camPos.z = cosf( m_cameraPositionTheta );
-			camPos *= m_cameraRadius;
-
-			camPos += m_cameraFocusPoint;
-
-			camLookAt = m_cameraFocusPoint;
 
 			int windowWidth;
 			int windowHeight;
 			glfwGetWindowSize( glfwWindow, &windowWidth, &windowHeight );
 
-			const float zNear   = 0.1f;
-			const float zFar    = 1000.0f;
-			const float fovy	= 45.0f;
-			const float aspect	= (float)windowHeight / (float)windowWidth;
-			camera.matProj.PerspectiveVulkan( fovy, aspect, zNear, zFar );
-			camera.matProj = camera.matProj.Transpose();
+			const float zNear = 0.1f;
+			const float zFar = 1000.0f;
+			const float fovy = 45.0f;
+			const float aspect = (float) windowHeight / (float) windowWidth;
+			camera_matrices.matProj.PerspectiveVulkan( fovy, aspect, zNear, zFar );
+			camera_matrices.matProj = camera_matrices.matProj.Transpose();
 
-			camera.matView.LookAt( camPos, camLookAt, camUp );
-			camera.matView = camera.matView.Transpose();
+			camera_matrices.matView.LookAt( camPos, camLookAt, camUp );
+			camera_matrices.matView = camera_matrices.matView.Transpose();
 
 			// Update the uniform buffer for the camera matrices
-			memcpy( mappedData + uboByteOffset, &camera, sizeof( camera ) );
+			memcpy( mappedData + uboByteOffset, &camera_matrices, sizeof( camera_matrices ) );
 
 			cameraByteOFfset = uboByteOffset;
 
 			// update offset into the buffer
-			uboByteOffset += deviceContext.GetAligendUniformByteOffset( sizeof( camera ) );
+			uboByteOffset += deviceContext.GetAligendUniformByteOffset( sizeof( camera_matrices ) );
 		}
 
 		//
@@ -592,32 +647,33 @@ void Application::UpdateUniforms() {
 			const int windowHeight = g_shadowFrameBuffer.m_parms.height;
 
 			const float halfWidth = 60.0f;
-			const float xmin	= -halfWidth;
-			const float xmax	= halfWidth;
-			const float ymin	= -halfWidth;
-			const float ymax	= halfWidth;
-			const float zNear	= 25.0f;
-			const float zFar	= 175.0f;
-			camera.matProj.OrthoVulkan( xmin, xmax, ymin, ymax, zNear, zFar );
-			camera.matProj = camera.matProj.Transpose();
+			const float xmin = -halfWidth;
+			const float xmax = halfWidth;
+			const float ymin = -halfWidth;
+			const float ymax = halfWidth;
+			const float zNear = 25.0f;
+			const float zFar = 175.0f;
+			camera_matrices.matProj.OrthoVulkan( xmin, xmax, ymin, ymax, zNear, zFar );
+			camera_matrices.matProj = camera_matrices.matProj.Transpose();
 
-			camera.matView.LookAt( camPos, camLookAt, camUp );
-			camera.matView = camera.matView.Transpose();
+			camera_matrices.matView.LookAt( camPos, camLookAt, camUp );
+			camera_matrices.matView = camera_matrices.matView.Transpose();
 
 			// Update the uniform buffer for the camera matrices
-			memcpy( mappedData + uboByteOffset, &camera, sizeof( camera ) );
+			memcpy( mappedData + uboByteOffset, &camera_matrices, sizeof( camera_matrices ) );
 
 			shadowByteOffset = uboByteOffset;
 
 			// update offset into the buffer
-			uboByteOffset += deviceContext.GetAligendUniformByteOffset( sizeof( camera ) );
+			uboByteOffset += deviceContext.GetAligendUniformByteOffset( sizeof( camera_matrices ) );
 		}
 
 		//
 		//	Update the uniform buffer with the body positions/orientations
 		//
-		for ( int i = 0; i < scene->bodies.size(); i++ ) {
-			Body & body = scene->bodies[ i ];
+		for ( int i = 0; i < scene->bodies.size(); i++ )
+		{
+			Body& body = scene->bodies[i];
 
 			Vec3 fwd = body.orientation.RotatePoint( Vec3( 1, 0, 0 ) );
 			Vec3 up = body.orientation.RotatePoint( Vec3( 0, 0, 1 ) );
@@ -630,7 +686,7 @@ void Application::UpdateUniforms() {
 			memcpy( mappedData + uboByteOffset, matOrient.ToPtr(), sizeof( matOrient ) );
 
 			RenderModel renderModel;
-			renderModel.model = m_models[ i ];
+			renderModel.model = m_models[i];
 			renderModel.uboByteOffset = uboByteOffset;
 			renderModel.uboByteSize = sizeof( matOrient );
 			renderModel.pos = body.position;
@@ -649,7 +705,8 @@ void Application::UpdateUniforms() {
 Application::DrawFrame
 ====================================================
 */
-void Application::DrawFrame() {
+void Application::DrawFrame()
+{
 	UpdateUniforms();
 
 	//
@@ -658,15 +715,15 @@ void Application::DrawFrame() {
 	const uint32_t imageIndex = deviceContext.BeginFrame();
 
 	// Draw everything in an offscreen buffer
-	DrawOffscreen( &deviceContext, imageIndex, &m_uniformBuffer, m_renderModels.data(), (int)m_renderModels.size() );
+	DrawOffscreen( &deviceContext, imageIndex, &m_uniformBuffer, m_renderModels.data(), (int) m_renderModels.size() );
 
 	//
 	//	Draw the offscreen framebuffer to the swap chain frame buffer
 	//
- 	deviceContext.BeginRenderPass();
+	deviceContext.BeginRenderPass();
 	{
 		extern FrameBuffer g_offscreenFrameBuffer;
-		VkCommandBuffer cmdBuffer = deviceContext.m_vkCommandBuffers[ imageIndex ];
+		VkCommandBuffer cmdBuffer = deviceContext.m_vkCommandBuffers[imageIndex];
 
 		// Binding the pipeline is effectively the "use shader" we had back in our opengl apps
 		m_copyPipeline.BindPipeline( cmdBuffer );
@@ -677,7 +734,7 @@ void Application::DrawFrame() {
 		descriptor.BindDescriptor( &deviceContext, cmdBuffer, &m_copyPipeline );
 		m_modelFullScreen.DrawIndexed( cmdBuffer );
 	}
- 	deviceContext.EndRenderPass();
+	deviceContext.EndRenderPass();
 
 	//
 	//	End the render frame
