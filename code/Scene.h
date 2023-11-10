@@ -13,7 +13,7 @@ Scene
 */
 class Scene {
 public:
-	Scene() { bodies.reserve( 128 ); }
+	Scene();
 	~Scene();
 
 	void Clean();

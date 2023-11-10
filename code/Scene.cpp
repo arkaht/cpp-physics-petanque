@@ -17,6 +17,11 @@ Scene
 ========================================================================================================
 */
 
+Scene::Scene()
+{
+	bodies.reserve( 128 );
+}
+
 /*
 ====================================================
 Scene::~Scene
@@ -54,16 +59,23 @@ Scene::Initialize
 */
 void Scene::Initialize() 
 {
-	for ( int x = 0; x < 10; x++ )
+	const int row_count = 10;
+	const float gap = 2.0f;
+
+	Vec3 center( -( row_count - 1 ) * gap * 0.5f );
+	center.z = 0.0f;
+
+	for ( int x = 0; x < row_count; x++ )
 	{
-		for ( int y = 0; y < 10; y++ )
+		for ( int y = 0; y < row_count; y++ )
 		{
 			Body body;
-			body.position = Vec3( x * 2.0f, y * 2.0f, 5 );
+			body.position = center + Vec3( x * gap, y * gap, 5 );
 			body.orientation = Quat( 0, 0, 0, 1 );
 			body.shape = new ShapeSphere( 1.0f );
 			body.SetMass( 5.0f );
 			body.elasticity = 0.5f;
+			body.friction = 0.9f;
 			body.linearVelocity = { 0.0f, 0.0f, 0.0f };
 			bodies.push_back( body );
 		}
@@ -77,9 +89,10 @@ void Scene::Initialize()
 	bodyB.elasticity = 0.5f;
 	bodies.push_back( bodyB );*/
 
-	earth.position = Vec3( 0, 0, -1000 );
+	float earth_radius = 4.7f;
+	earth.position = Vec3( 0, 0, -earth_radius );
 	earth.orientation = Quat( 0, 0, 0, 1 );
-	earth.shape = new ShapeSphere( 1000.0f );
+	earth.shape = new ShapeSphere( earth_radius );
 	earth.SetMass( 0.0f );
 	bodies.push_back( earth );
 }
@@ -113,7 +126,6 @@ void Scene::Update( const float dt )
 	std::vector<Contact> contacts;
 	contacts.reserve( bodies.size() * bodies.size() );
 
-	/*
 	//  broadphase
 	std::vector<CollisionPair> collisions_pairs;
 	Broadphase( bodies, collisions_pairs, dt );
@@ -131,8 +143,7 @@ void Scene::Update( const float dt )
 			contacts.push_back( contact );
 		}
 	}
-	*/
-	for ( int i = 0; i < bodies.size(); i++ )
+	/*for ( int i = 0; i < bodies.size(); i++ )
 	{
 		Body& a = bodies[i];
 
@@ -147,7 +158,7 @@ void Scene::Update( const float dt )
 				contacts.push_back( contact );
 			}
 		}
-	}
+	}*/
 
 	std::sort( contacts.begin(), contacts.end(), Contact::Compare );
 

@@ -46,7 +46,13 @@ bool Intersection::Intersect( Body& a, Body& b, const float dt, Contact& contact
 	return false;
 }
 
-bool Intersection::RaySphere( const Vec3& origin, const Vec3& dir, const Vec3& sphere_center, float sphere_radius, float& t0, float& t1 )
+bool Intersection::RaySphere( 
+	const Vec3& origin, 
+	const Vec3& dir, 
+	const Vec3& sphere_center, 
+	float sphere_radius, 
+	float& t0, float& t1
+)
 {
 	const Vec3& s = sphere_center - origin;
 	const float a = dir.Dot( dir );
@@ -64,7 +70,14 @@ bool Intersection::RaySphere( const Vec3& origin, const Vec3& dir, const Vec3& s
 	return true;
 }
 
-bool Intersection::DynamicSphereToSphere( const ShapeSphere& shape_a, const ShapeSphere& shape_b, const Vec3& pos_a, const Vec3& pos_b, const Vec3& vel_a, const Vec3& vel_b, const float dt, Vec3& point_a, Vec3& point_b, float& impact_time )
+bool Intersection::DynamicSphereToSphere( 
+	const ShapeSphere& shape_a, const ShapeSphere& shape_b, 
+	const Vec3& pos_a, const Vec3& pos_b, 
+	const Vec3& vel_a, const Vec3& vel_b, 
+	const float dt, 
+	Vec3& point_a, Vec3& point_b, 
+	float& impact_time 
+)
 {
 	const Vec3& relative_vel = vel_a - vel_b;
 
@@ -106,6 +119,6 @@ bool Intersection::DynamicSphereToSphere( const ShapeSphere& shape_a, const Shap
 	ab.Normalize();
 
 	point_a = new_pos_a + ab * shape_a.radius;
-	point_b = new_pos_b + ab * shape_b.radius;
+	point_b = new_pos_b - ab * shape_b.radius;
 	return true;
 }
