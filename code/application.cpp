@@ -86,10 +86,10 @@ void Application::Initialize()
 	scene->Reset();
 
 	m_models.reserve( scene->bodies.size() );
-	/*for ( int i = 0; i < scene->bodies.size(); i++ )
+	for ( int i = 0; i < scene->bodies.size(); i++ )
 	{
-		CreateModelForBodyIndex( i );
-	}*/
+		CreateModelForBody( scene->bodies[i] );
+	}
 
 	m_mousePosition = Vec2( 0, 0 );
 

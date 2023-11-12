@@ -8,6 +8,7 @@
 #include "application.h"
 
 #include <algorithm>
+#include <random>
 
 
 /*
@@ -19,8 +20,8 @@ Scene
 */
 
 Scene::Scene( Application* application )
-	: application( application ),
-	camera( application->GetCamera() )
+	:	application( application ),
+		camera( application->GetCamera() )
 {
 	bodies.reserve( 128 );
 }
@@ -123,40 +124,34 @@ void Scene::Initialize()
 	//  spawn walls
 	const float PI = 3.14159265359f;
 	const float DEG_TO_RAD = PI / 180.0f;
-
-	const float radius_ratio = 0.1f;
-	const float z_ratio = 0.001f;
-
-	const float wall_pos_radius = EARTH_RADIUS * radius_ratio;
-	const float wall_radius = EARTH_RADIUS / 100.0f;
-	const int walls_count = 360.0f / wall_radius;
-	const float wall_z = -EARTH_RADIUS * z_ratio;
-	const float angle_iter = 360.0f / walls_count * DEG_TO_RAD;
+	const float angle_iter = 360.0f / WALLS_COUNT * DEG_TO_RAD;
 
 	/*printf( "z-ratio=%f\n", ( earth.position.z - wall_z ) / EARTH_RADIUS );
 	printf( "angle_iter=%f\n", angle_iter );*/
 
 	SphereSettings wall_settings {};
 	wall_settings.mass = 0.0f;
-	wall_settings.radius = wall_radius;
+	wall_settings.radius = WALLS_RADIUS;
 	wall_settings.elasticity = 1.0f;
 	wall_settings.friction = 0.5f;
 
-	for ( int i = 0; i < walls_count; i++ )
+	for ( int i = 0; i < WALLS_COUNT; i++ )
 	{
 		const float angle = angle_iter * i;
 
 		SpawnSphere( 
 			Vec3 {
-				cosf( angle ) * wall_pos_radius,
-				sinf( angle ) * wall_pos_radius,
-				wall_z,
+				cosf( angle ) * WALLS_POSITION_RADIUS,
+				sinf( angle ) * WALLS_POSITION_RADIUS,
+				WALLS_Z,
 			}, 
 			wall_settings 
 		);
 	}
 
 	SetupSettings();
+	SetupBalls();
+
 	BeginSet();
 }
 
@@ -321,12 +316,18 @@ Body& Scene::SpawnSphere( const Vec3& pos, SphereSettings settings )
 	body.friction = settings.friction;
 	bodies.push_back( body );
 
-	application->CreateModelForBody( body );
+	//application->CreateModelForBody( body );
 	return bodies.back();
 }
 
 PlayerState* Scene::GetNextTurnPlayerState()
 {
+	//  piggy turn? keep the same player
+	if ( turnId == 0 )
+	{
+		return currentPlayerState;
+	}
+
 	if ( firstPlayerState.turnRemainingBalls == 0 && secondPlayerState.turnRemainingBalls == 0 )
 	{
 		printf( "No one has remaining balls, ending set!\n" );
@@ -353,13 +354,52 @@ PlayerState* Scene::GetNextTurnPlayerState()
 	return nullptr;
 }
 
-void Scene::RemoveBody( const Body& body )
+PlayerState& Scene::GetRandomPlayerState()
 {
-	auto itr = std::find( bodies.begin(), bodies.end(), body );
-	if ( itr == bodies.end() ) return;
+	std::random_device dev;
+    std::mt19937 rng( dev() );
+    std::uniform_int_distribution<std::mt19937::result_type> dist( 1, 2 );
 
-	delete body.shape;
-	bodies.erase( itr );
+	return dist( rng ) == 1 
+		? firstPlayerState
+		: secondPlayerState;
+}
+
+void Scene::SetupBalls()
+{
+	//  create piggy ball
+	piggyBall = &SpawnSphere( Vec3 { 0.0f, 0.0f, 0.0f }, piggyBallSettings );
+
+	//  create players balls
+	for ( int i = 0; i < BALLS_PER_TURN * 2; i++ )
+	{
+		Body& ball = SpawnSphere( 
+			Vec3 { 0.0f, 0.0f, 0.0f },
+			metalBallSettings
+		);
+
+		playersBalls.emplace_back( 
+			nullptr, 
+			&ball 
+		);
+	}
+}
+
+void Scene::ResetBalls()
+{
+	piggyBall->position = Vec3 { 0.0f, 0.0f, 0.0f };
+	piggyBall->SetMass( 0.0f );  //  set as static
+
+	for ( int i = 0; i < playersBalls.size(); i++ )
+	{
+		PlayerBall& player_ball = playersBalls[i];
+		player_ball.ball->position = Vec3 { 
+			i * 5.0f, 
+			WALLS_POSITION_RADIUS, 
+			WALLS_Z + 10.0f 
+		};
+		player_ball.ball->SetMass( 0.0f );  //  set as static
+	}
 }
 
 void Scene::SortBallsPerProximity()
@@ -374,6 +414,7 @@ void Scene::BeginSet()
 {
 	printf( "GameState: Begin Set\n" );
 
+	ResetBalls();
 	turnId = -1;
 
 	//  prepare player states
@@ -383,7 +424,9 @@ void Scene::BeginSet()
 	secondPlayerState.playersBalls.clear();
 	secondPlayerState.turnRemainingBalls = BALLS_PER_TURN;
 
-	BeginTurn( firstPlayerState );  //  TODO: randomly choose player
+	//  get first player to start
+	PlayerState& player_state = GetRandomPlayerState();
+	BeginTurn( player_state );
 }
 
 void Scene::EndSet()
@@ -430,19 +473,6 @@ void Scene::EndSet()
 	{
 		printf( "Set won by %s, score: %d vs %d\n", winning_player->name.c_str(), winning_player->score, loosing_player->score );
 	
-		//  clear player balls
-		for ( PlayerBall& player_ball : playersBalls )
-		{
-			RemoveBody( *player_ball.ball );
-		}
-		playersBalls.clear();
-
-		//  clear piggy ball
-		if ( piggyBall != nullptr )
-		{
-			RemoveBody( *piggyBall );
-		}
-
 		BeginSet();
 	}
 }
@@ -450,35 +480,37 @@ void Scene::EndSet()
 void Scene::BeginTurn( PlayerState& player_state )
 {
 	turnId++;
+	currentPlayerState = &player_state;
 
 	//  get next ball settings
 	const SphereSettings& settings = turnId == 0 
-		? piggySettings 
+		? piggyBallSettings 
 		: metalBallSettings;
 
 	printf( "%f\n", settings.radius );
 
 	//  spawn ball
-	Body& ball = SpawnSphere( 
-		Vec3 { 0.0f, 0.0f, settings.radius }, 
-		settings 
-	);
 	if ( turnId > 0 )
 	{
-		//  add balls to list
-		player_state.playersBalls.push_back( &ball );
-		player_state.turnRemainingBalls--;
+		PlayerBall& player_ball = playersBalls[turnId - 1];
+		player_ball.ball->position = Vec3 { 0.0f, 0.0f, metalBallSettings.radius };
+		player_ball.ball->SetMass( metalBallSettings.mass );
+		player_ball.playerState = &player_state;
 
-		playersBalls.emplace_back( &player_state, &ball );
+		//  set as camera target
+		target = player_ball.ball;
+
+		//  add balls to list
+		player_state.turnRemainingBalls--;
 	}
 	else
 	{
-		//  set ball as piggy
-		piggyBall = &ball;
-	}
+		piggyBall->position = Vec3 { 0.0f, 0.0f, piggyBallSettings.radius };
+		piggyBall->SetMass( piggyBallSettings.mass );
 
-	//  set ball as camera target
-	target = &ball;
+		//  set as camera target
+		target = piggyBall;
+	}
 
 	gameState = GameState::WaitToShoot;
 
