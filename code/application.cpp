@@ -560,13 +560,10 @@ void Application::MainLoop()
 	}
 }
 
-void Application::CreateModelForBodyIndex( int index )
+void Application::CreateModelForBody( const Body& body )
 {
-	int models_size = m_models.size() - 1;
-	if ( index < models_size ) return;
-
 	Model* model = new Model();
-	model->BuildFromShape( scene->bodies[index].shape );
+	model->BuildFromShape( body.shape );
 	model->MakeVBO( &deviceContext );
 
 	m_models.push_back( model );

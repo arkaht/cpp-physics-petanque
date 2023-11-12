@@ -34,7 +34,7 @@ public:
 	void Initialize();
 	void MainLoop();
 
-	void CreateModelForBodyIndex( int index );
+	void CreateModelForBody( const Body& body );
 
 	Camera& GetCamera() { return camera; }
 	bool IsPaused() const { return m_isPaused; }
@@ -88,7 +88,7 @@ private:
 	bool m_isPaused;
 	bool m_stepFrame;
 
-	std::vector< RenderModel > m_renderModels;
+	std::vector<RenderModel> m_renderModels;
 
 	static const int WINDOW_WIDTH = 1200;
 	static const int WINDOW_HEIGHT = 720;

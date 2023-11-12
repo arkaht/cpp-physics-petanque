@@ -36,6 +36,11 @@ public:
 
 	bool IsStatic() const { return mass == 0.0f; }
 
+	bool operator==( const Body& other ) const
+	{
+		return this == &other;
+	}
+
 private:
 	float mass;
 	float inverseMass;

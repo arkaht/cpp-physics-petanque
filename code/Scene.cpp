@@ -97,8 +97,17 @@ void Scene::Initialize()
 	bodyB.elasticity = 0.5f;
 	bodies.push_back( bodyB );*/
 
+	//  setup players
 	firstPlayerState.name = "Player 1";
+	firstPlayerState.score = 0;
 	secondPlayerState.name = "Player 2";
+	secondPlayerState.score = 0;
+
+	//  reset game state
+	shootTime = 0.0f;
+	timeToEnd = 0.0f;
+	piggyBall = nullptr;
+	playersBalls.clear();
 
 	SphereSettings earth_settings {};
 	earth_settings.mass = 0.0f;
@@ -312,7 +321,7 @@ Body& Scene::SpawnSphere( const Vec3& pos, SphereSettings settings )
 	body.friction = settings.friction;
 	bodies.push_back( body );
 
-	application->CreateModelForBodyIndex( bodies.size() - 1 );
+	application->CreateModelForBody( body );
 	return bodies.back();
 }
 
@@ -320,56 +329,152 @@ PlayerState* Scene::GetNextTurnPlayerState()
 {
 	if ( firstPlayerState.turnRemainingBalls == 0 && secondPlayerState.turnRemainingBalls == 0 )
 	{
-		printf( "No one has remaining balls, ending set!" );
+		printf( "No one has remaining balls, ending set!\n" );
 		return nullptr;
 	}
 
-	PlayerState& player = firstPlayerState;
-	for ( Body* ball : player.balls )
+	//  get the disavantaged player
+	if ( playersBalls.size() > 0 )
 	{
-		
+		SortBallsPerProximity();
+
+		PlayerState& aheadPlayer = *playersBalls[0].playerState;
+		if ( &aheadPlayer == &firstPlayerState 
+		  && secondPlayerState.turnRemainingBalls > 0 )
+			return &secondPlayerState;
 	}
+	
+	//  get either one of them, priorizing first player
+	if ( firstPlayerState.turnRemainingBalls > 0 )
+		return &firstPlayerState;
+	if ( secondPlayerState.turnRemainingBalls > 0 )
+		return &secondPlayerState;
 
 	return nullptr;
 }
 
+void Scene::RemoveBody( const Body& body )
+{
+	auto itr = std::find( bodies.begin(), bodies.end(), body );
+	if ( itr == bodies.end() ) return;
+
+	delete body.shape;
+	bodies.erase( itr );
+}
+
+void Scene::SortBallsPerProximity()
+{
+	auto comparer = PlayerBallsProximityComparer {};
+	comparer.origin = piggyBall->GetWorldMassCenter();
+
+	std::sort( playersBalls.begin(), playersBalls.end(), comparer );
+}
+
 void Scene::BeginSet()
 {
+	printf( "GameState: Begin Set\n" );
+
 	turnId = -1;
 
-	BeginTurn( firstPlayerState );  //  TODO: randomly choose player
+	//  prepare player states
+	firstPlayerState.playersBalls.clear();
+	firstPlayerState.turnRemainingBalls = BALLS_PER_TURN;
 
+	secondPlayerState.playersBalls.clear();
+	secondPlayerState.turnRemainingBalls = BALLS_PER_TURN;
+
+	BeginTurn( firstPlayerState );  //  TODO: randomly choose player
 }
 
 void Scene::EndSet()
 {
+	printf( "GameState: End Set\n" );
+
+	SortBallsPerProximity();  //  probably already done but just to make sure
+
+	//  get winning & loosing players
+	PlayerState* winning_player = playersBalls[0].playerState;
+	PlayerState* loosing_player = winning_player == &firstPlayerState 
+		? &secondPlayerState 
+		: &firstPlayerState;
+
+	//  count score to gain
+	int score_gain = 0;
+	for ( const PlayerBall& ball : playersBalls )
+	{
+		if ( winning_player != ball.playerState ) break;
+
+		//  add one point for each closest balls
+		score_gain++;
+	}
+
+	//  gain score
+	winning_player->score += score_gain;
+	printf( "%s gained %d score!\n", winning_player->name.c_str(), score_gain );
+
+	//  check score
+	if ( winning_player->score >= MAX_SCORE )
+	{
+		printf( "Game won by %s, score: %d vs %d\n", winning_player->name.c_str(), winning_player->score, loosing_player->score );
+
+		//  obliteration check..
+		if ( loosing_player->score == 0 )
+		{
+			printf( "%s has to kiss Fanny :)\n", loosing_player->name.c_str() );
+		}
+
+		gameState = GameState::WaitToLaunchGame;
+		printf( "Press R to restart!\n" );
+	}
+	else
+	{
+		printf( "Set won by %s, score: %d vs %d\n", winning_player->name.c_str(), winning_player->score, loosing_player->score );
+	
+		//  clear player balls
+		for ( PlayerBall& player_ball : playersBalls )
+		{
+			RemoveBody( *player_ball.ball );
+		}
+		playersBalls.clear();
+
+		//  clear piggy ball
+		if ( piggyBall != nullptr )
+		{
+			RemoveBody( *piggyBall );
+		}
+
+		BeginSet();
+	}
 }
 
 void Scene::BeginTurn( PlayerState& player_state )
 {
-	//  prepare player states
-	firstPlayerState.balls.clear();
-	firstPlayerState.turnRemainingBalls = BALLS_PER_TURN;
-
-	secondPlayerState.balls.clear();
-	secondPlayerState.turnRemainingBalls = BALLS_PER_TURN;
+	turnId++;
 
 	//  get next ball settings
 	const SphereSettings& settings = turnId == 0 
 		? piggySettings 
 		: metalBallSettings;
 
+	printf( "%f\n", settings.radius );
+
 	//  spawn ball
 	Body& ball = SpawnSphere( 
 		Vec3 { 0.0f, 0.0f, settings.radius }, 
 		settings 
 	);
-
 	if ( turnId > 0 )
 	{
 		//  add balls to list
-		player_state.balls.push_back( &ball );
+		player_state.playersBalls.push_back( &ball );
 		player_state.turnRemainingBalls--;
+
+		playersBalls.emplace_back( &player_state, &ball );
+	}
+	else
+	{
+		//  set ball as piggy
+		piggyBall = &ball;
 	}
 
 	//  set ball as camera target
@@ -394,9 +499,8 @@ void Scene::EndTurn()
 
 	//  reset state
 	timeToEnd = 0.0f;
-	turnId++;
 
-	printf( "GameState: EndTurn\n" );
+	printf( "GameState: End Turn\n" );
 
 	//  move to next turn or set
 	PlayerState* player_state = GetNextTurnPlayerState();
