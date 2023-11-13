@@ -33,7 +33,6 @@ struct PlayerState
 	std::string name { "N/A" };
 	int score = 0;
 	int turnRemainingBalls = 0;
-	std::vector<Body*> playersBalls;  //  TODO: remove
 };
 
 struct PlayerBall
@@ -120,7 +119,6 @@ private:
 	}
 
 	GameState gameState;
-	//bool canUserPlay = false;				//  can user press gameplay inputs
 	float shootTime = 0.0f;
 	float timeToEnd = 0.0f;
 	PlayerState firstPlayerState;

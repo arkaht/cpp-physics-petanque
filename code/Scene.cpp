@@ -357,8 +357,8 @@ PlayerState* Scene::GetNextTurnPlayerState()
 PlayerState& Scene::GetRandomPlayerState()
 {
 	std::random_device dev;
-    std::mt19937 rng( dev() );
-    std::uniform_int_distribution<std::mt19937::result_type> dist( 1, 2 );
+	std::mt19937 rng( dev() );
+	std::uniform_int_distribution<std::mt19937::result_type> dist( 1, 2 );
 
 	return dist( rng ) == 1 
 		? firstPlayerState
@@ -418,10 +418,7 @@ void Scene::BeginSet()
 	turnId = -1;
 
 	//  prepare player states
-	firstPlayerState.playersBalls.clear();
 	firstPlayerState.turnRemainingBalls = BALLS_PER_TURN;
-
-	secondPlayerState.playersBalls.clear();
 	secondPlayerState.turnRemainingBalls = BALLS_PER_TURN;
 
 	//  get first player to start
@@ -588,7 +585,6 @@ void Scene::Shoot()
 	//  reset state
 	gameState = GameState::WaitToEnd;
 	shootTime = 0.0f;
-	//canUserPlay = false;
 
 	printf( "GameState: Shoot\n" );
 }
